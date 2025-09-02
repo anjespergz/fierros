@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Simulador de Tablero Eléctrico Industrial</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DSEG7+Classic:wght@400&display=swap');
+
+body {
+  background-color: #2c2c2c;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  color: #e0e0e0;
+  padding: 20px;
+}
+
+.panel-container {
+  background-color: #d0d0d0;
+  padding: 40px;
+  border-radius: 10px;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+  width: 900px;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-gap: 25px;
+  position: relative;
+}
+
+.panel-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px;
+  position: relative;
+}
+
+.display {
+  background-color: #111;
+  color: #ff3333;
+  font-family: 'DSEG7 Classic', monospace;
+  font-size: 24px;
+  padding: 10px;
+  border: 2px solid #500;
+  text-shadow: 0 0 8px #f00;
+  border-radius: 5px;
+  width: 100%;
+  text-align: right;
+}
+
+.lcd {
+  grid-column: span 3;
+  height: 150px;
+  text-align: left;
+  font-size: 18px;
+  line-height: 1.4;
+  padding: 15px;
+}
+
+.lcd-small {
+  width: 150px;
+  height: 80px;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.button, .indicator, .selector-switch {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 3px solid #666;
+  background-color: #555;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.button.green { background-color: #0a0; }
+.button.red { background-color: #a00; }
+.button.yellow { background-color: #aa0; }
+
+.indicator { cursor: default; transition: all 0.3s; }
+.indicator.green.on { background-color: #0f0; box-shadow: 0 0 20px #0f0; }
+.indicator.red.on { background-color: #f00; box-shadow: 0 0 20px #f00; animation: blink 1s infinite; }
+.indicator.yellow.on { background-color: #ff0; box-shadow: 0 0 20px #ff0; animation: blink 1s infinite; }
+
+@keyframes blink {
+  0%, 50%, 100% { opacity: 1; }
+  25%, 75% { opacity: 0.3; }
+}
+
+.emergency {
+  grid-column: span 2;
+  width: 100px;
+  height: 100px;
+  background-color: darkred;
+  border: 4px solid #800;
+  box-shadow: 0 0 30px red;
+  font-weight: bold;
+  color: white;
+  border-radius: 50%;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.label {
+  text-align: center;
+  font-size: 12px;
+  color: #444;
+  margin-top: 5px;
+  font-weight: bold;
+}
+
+.separator {
+  height: 2px;
+  width: 100%;
+  background-color: #999;
+  margin: 15px 0;
+  grid-column: span 6;
+}
+
+.header {
+  grid-column: span 6;
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 10px;
+}
+</style>
+</head>
+<body>
+
+<div class="panel-container">
+  <div class="header">PANEL DE CONTROL PRINCIPAL</div>
+  
+  <div class="panel-item" style="grid-column: span 2;">
+    <div class="display lcd lcd-small" id="display-info">
+      <div id="system-status">Listo</div>
+      <div id="run-time">Tiempo: 0 h</div>
+      <div id="temperature">Temp: 25°C</div>
+    </div>
+    <div class="label">Estado del Sistema</div>
+  </div>
+  
+  <div class="panel-item">
+    <div class="display" id="display-v">460.0 V</div>
+    <div class="label">VOLTAJE</div>
+  </div>
+  <div class="panel-item">
+    <div class="display" id="display-i">0.0 A</div>
+    <div class="label">CORRIENTE</div>
+  </div>
+  <div class="panel-item">
+    <div class="display" id="display-f">60.0 Hz</div>
+    <div class="label">FRECUENCIA</div>
+  </div>
+  
+  <div class="separator"></div>
+
+  <div class="panel-item">
+    <span class="indicator green" id="ready-light"></span>
+    <div class="label">LISTO</div>
+  </div>
+  <div class="panel-item">
+    <span class="indicator green" id="run-light"></span>
+    <div class="label">EN MARCHA</div>
+  </div>
+  <div class="panel-item">
+    <span class="indicator red" id="fault-light"></span>
+    <div class="label">FALLA</div>
+  </div>
+  <div class="panel-item">
+    <span class="indicator green" id="fan-light"></span>
+    <div class="label">VENTILADOR</div>
+  </div>
+  <div class="panel-item">
+    <span class="indicator green" id="pump-light"></span>
+    <div class="label">BOMBA</div>
+  </div>
+  <div class="panel-item">
+    <span class="indicator yellow" id="warning-light"></span>
+    <div class="label">ALERTA</div>
+  </div>
+  <div class="panel-item">
+    <span class="indicator yellow" id="light-indicator"></span>
+    <div class="label">LUZ</div>
+  </div>
+
+  <div class="separator"></div>
+  
+  <div class="panel-item">
+    <button class="button green" id="start-btn"></button>
+    <div class="label">INICIO</div>
+  </div>
+  <div class="panel-item">
+    <button class="button red" id="stop-btn"></button>
+    <div class="label">PARO</div>
+  </div>
+  <div class="panel-item">
+    <button class="button yellow" id="reset-btn"></button>
+    <div class="label">RESET</div>
+  </div>
+  <div class="panel-item">
+    <button class="button green" id="fan-btn"></button>
+    <div class="label">Vent. ON/OFF</div>
+  </div>
+  <div class="panel-item">
+    <button class="button green" id="pump-btn"></button>
+    <div class="label">Bomba ON/OFF</div>
+  </div>
+  <div class="panel-item">
+    <button class="button green" id="light-btn"></button>
+    <div class="label">Luz ON/OFF</div>
+  </div>
+  
+  <div class="panel-item" style="grid-column: span 6;">
+    <button class="button emergency" id="emergency-btn">PARO<br>DE EMERGENCIA</button>
+  </div>
+</div>
+
+<script>
+let motorStatus = "stopped";
+let faultActive = false;
+let runTime = 0;
+let runInterval, runtimeInterval, tempInterval;
+const motorCurrent = 12.3;
+
+const startBtn = document.getElementById('start-btn');
+const stopBtn = document.getElementById('stop-btn');
+const resetBtn = document.getElementById('reset-btn');
+const emergencyBtn = document.getElementById('emergency-btn');
+const fanBtn = document.getElementById('fan-btn');
+const pumpBtn = document.getElementById('pump-btn');
+const lightBtn = document.getElementById('light-btn');
+
+const runLight = document.getElementById('run-light');
+const readyLight = document.getElementById('ready-light');
+const faultLight = document.getElementById('fault-light');
+const fanLight = document.getElementById('fan-light');
+const pumpLight = document.getElementById('pump-light');
+const warningLight = document.getElementById('warning-light');
+const lightIndicator = document.getElementById('light-indicator');
+
+const displayInfo = document.getElementById('display-info');
+const displayV = document.getElementById('display-v');
+const displayI = document.getElementById('display-i');
+const displayF = document.getElementById('display-f');
+
+function updateDisplays(voltage, current, frequency, temp, status) {
+  displayV.textContent = `${voltage.toFixed(1)} V`;
+  displayI.textContent = `${current.toFixed(1)} A`;
+  displayF.textContent = `${frequency.toFixed(1)} Hz`;
+  document.getElementById('system-status').textContent = status;
+  document.getElementById('temperature').textContent = `Temp: ${temp.toFixed(0)}°C`;
+}
+
+function startMotor() {
+  if (motorStatus !== "running" && !faultActive) {
+    motorStatus = "starting";
+    updateDisplays(460, 0, 60, 25, "ARRANCANDO...");
+    readyLight.classList.remove("on");
+    runLight.classList.add("on");
+
+    let currentSpike = motorCurrent * 2.5;
+    displayI.textContent = `${currentSpike.toFixed(1)} A`;
+
+    setTimeout(() => {
+      motorStatus = "running";
+      updateDisplays(460, motorCurrent, 60, 45, "EN MARCHA");
+
+      if (tempInterval) clearInterval(tempInterval);
+      tempInterval = setInterval(() => {
+        const temp = parseFloat(document.getElementById('temperature').textContent.split(' ')[1].slice(0,-2));
+        const newTemp = Math.min(temp + 1, 65);
+        document.getElementById('temperature').textContent = `Temp: ${newTemp.toFixed(0)}°C`;
+        if (newTemp >= 60) {
+          warningLight.classList.add('on');
+          document.getElementById('system-status').textContent = "SOBRECALENTAMIENTO";
+        }
+      }, 5000);
+
+      if (runtimeInterval) clearInterval(runtimeInterval);
+      runtimeInterval = setInterval(() => {
+        runTime += 1;
+        document.getElementById('run-time').textContent = `Tiempo: ${runTime} h`;
+      }, 1000);
+
+    }, 1500);
+  }
+}
+
+function stopMotor() {
+  if (motorStatus !== "stopped") {
+    motorStatus = "stopped";
+    updateDisplays(460, 0, 60, 25, "DETENIDO");
+    runLight.classList.remove("on");
+    readyLight.classList.add("on");
+    clearInterval(tempInterval);
+    clearInterval(runtimeInterval);
+  }
+}
+
+function triggerFault(type) {
+  stopMotor();
+  faultActive = true;
+  faultLight.classList.add("on");
+  warningLight.classList.remove("on");
+  displayInfo.style.color = "#ff0000";
+  document.getElementById('system-status').textContent = `!!! FALLA: ${type} !!!`;
+}
+
+function resetFault() {
+  faultActive = false;
+  faultLight.classList.remove("on");
+  displayInfo.style.color = "#ff3333";
+  updateDisplays(460, 0, 60, 25, "Listo");
+  document.getElementById('run-time').textContent = `Tiempo: ${runTime} h`;
+  readyLight.classList.add("on");
+}
+
+function emergencyStop() {
+  stopMotor();
+  faultActive = true;
+  faultLight.classList.add("on");
+  warningLight.classList.remove("on");
+  displayInfo.style.color = "#ff0000";
+  document.getElementById('system-status').textContent = "EMERGENCIA ACTIVADA";
+  document.getElementById('temperature').textContent = `Temp: 0°C`;
+  displayV.textContent = `0 V`;
+  displayI.textContent = `0 A`;
+  displayF.textContent = `0 Hz`;
+  readyLight.classList.remove("on");
+}
+
+// Botones
+startBtn.addEventListener('click', () => { if(!faultActive) startMotor(); });
+stopBtn.addEventListener('click', stopMotor);
+resetBtn.addEventListener('click', resetFault);
+emergencyBtn.addEventListener('click', emergencyStop);
+
+fanBtn.addEventListener('click', () => fanLight.classList.toggle('on'));
+pumpBtn.addEventListener('click', () => pumpLight.classList.toggle('on'));
+
+lightBtn.addEventListener('click', () => {
+  lightBtn.classList.toggle('on');
+  const isOn = lightBtn.classList.contains('on');
+  lightIndicator.classList.toggle('on', isOn);
+});
+
+// Estado inicial
+readyLight.classList.add("on");
+updateDisplays(460, 0, 60, 25, "Listo");
+
+// Fallas aleatorias
+setInterval(() => {
+  if (motorStatus === "running" && Math.random() < 0.1) {
+    triggerFault("SOBRECARGA DEL MOTOR");
+  }
+}, 20000);
+
+</script>
+</body>
+</html>

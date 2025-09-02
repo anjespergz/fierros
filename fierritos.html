@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Simulador de Tablero Eléctrico Industrial</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DSEG7+Classic:wght@400&display=swap');
+
+:root{
+  --bg:#2c2c2c;
+  --panel:#d0d0d0;
+  --text:#e0e0e0;
+  --edge:#666;
+  --dark:#111;
+  --accent:#500;
+}
+
+*{box-sizing:border-box}
+
+body {
+  background-color: var(--bg);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  color: var(--text);
+  padding: 20px;
+}
+
+.panel-container {
+  background-color: var(--panel);
+  padding: 40px;
+  border-radius: 14px;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+  width: 980px;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-gap: 22px;
+  position: relative;
+}
+
+.panel-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px;
+  position: relative;
+}
+
+.display {
+  background-color: var(--dark);
+  color: #ff3333;
+  font-family: 'DSEG7 Classic', monospace;
+  font-size: 24px;
+  padding: 10px;
+  border: 2px solid var(--accent);
+  text-shadow: 0 0 8px #f00;
+  border-radius: 6px;
+  width: 100%;
+  text-align: right;
+  min-height: 48px;
+}
+
+.lcd {
+  grid-column: span 3;
+  min-height: 150px;
+  text-align: left;
+  font-size: 18px;
+  line-height: 1.4;
+  padding: 15px;
+}
+
+.lcd-small {
+  width: 180px;
+  height: 90px;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.button, .indicator, .selector-switch {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 3px solid var(--edge);
+  background-color: #555;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.25s;
+}
+
+.button.green { background-color: #0a0; }
+.button.red { background-color: #a00; }
+.button.yellow { background-color: #aa0; }
+
+.indicator { cursor: default; transition: all 0.25s; }
+.indicator.green.on { background-color: #0f0; box-shadow: 0 0 20px #0f0; }
+.indicator.red.on { background-color: #f00; box-shadow: 0 0 20px #f00; animation: blink 1s infinite; }
+.indicator.yellow.on { background-color: #ff0; box-shadow: 0 0 20px #ff0; animation: blink 1s infinite; }
+.indicator.blue.on { background-color: #55f; box-shadow: 0 0 20px #55f; }
+
+@keyframes blink {
+  0%, 50%, 100% { opacity: 1; }
+  25%, 75% { opacity: 0.35; }
+}
+
+.emergency {
+  grid-column: span 2;
+  width: 110px;
+  height: 110px;
+  background-color: darkred;
+  border: 4px solid #800;
+  box-shadow: 0 0 30px red;
+  font-weight: bold;
+  color: white;
+  border-radius: 50%;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.label {
+  text-align: center;
+  font-size: 12px;
+  color: #444;
+  margin-top: 6px;
+  font-weight: bold;
+}
+
+.separator {
+  height: 2px;
+  width: 100%;
+  background-color: #999;
+  margin: 10px 0 6px;
+  grid-column: span 6;
+}
+
+.header {
+  grid-column: span 6;
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.subgrid-3 {
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-gap: 12px;
+  width:100%;
+}
+
+.small-note{
+  font-size:11px;color:#555;margin-top:4px;text-align:center
+}
+</style>
+</head>
+<body>
+
+<div class="panel-container">
+  <div class="header">PANEL DE CONTROL PRINCIPAL</div>
+  
+  <!-- Estado del sistema y métricas -->
+  <div class="panel-item" style="grid-column: span 3;">
+    <div class="display lcd" id="display-info">
+      <div id="system-status">Listo</div>
+      <div id="run-time">Tiempo: 0 s</div>
+      <div id="temperature">Temp: 25°C</div>
+      <div id="pieces">Piezas: 0  |  Defectos: 0</div>
+      <div id="last-piece-msg"></div>
+    </div>
+    <div class="label">Estado del Sistema</div>
+  </div>
+  
+  <div class="panel-item">
+    <div class="display" id="display-v">460.0 V</div>
+    <div class="label">VOLTAJE</div>
+  </div>
+  <div class="panel-item">
+    <div class="display" id="display-i">0.0 A</div>
+    <div class="label">CORRIENTE TOTAL</div>
+    <div class="small-note">Motor + Bomba + Vent. + Luz</div>
+  </div>
+  <div class="panel-item">
+    <div class="display" id="display-f">60.0 Hz</div>
+    <div class="label">FRECUENCIA</div>
+  </div>
+  
+  <div class="separator"></div>
+
+  <!-- Indicadores de estado -->
+  <div class="panel-item">
+    <span class="indicator green" id="ready-light"></span>
+    <div class="label">LISTO</div>
+  </div>
+  <div class="panel-item">
+    <span class="indicator green" id="run-light"></span>
+    <div class="label">EN MARCHA</div>
+  </div>
+  <div class="panel-item">
+    <span class="indicator red" id="fault-light"></span>
+    <div class="label">FALLA</div>
+  </div>
+  <div class="panel-item">
+    <span class="indicator green" id="fan-light"></span>
+    <div class="label">VENTILADOR</div>
+  </div>
+  <div class="panel-item">
+    <span class="indicator green" id="pump-light"></span>
+    <div class="label">BOMBA</div>
+  </div>
+  <div class="panel-item">
+    <span class="indicator yellow" id="warning-light"></span>
+    <div class="label">ALERTA</div>
+  </div>
+  <div class="panel-item">
+    <span class="indicator yellow" id="light-indicator"></span>
+    <div class="label">LUZ</div>
+  </div>
+  <div class="panel-item">
+    <span class="indicator green" id="piece-ok-light"></span>
+    <div class="label">PIEZA OK</div>
+  </div>
+  <div class="panel-item">
+    <span class="indicator red" id="piece-bad-light"></span>
+    <div class="label">PIEZA DEFECTO</div>
+  </div>
+
+  <div class="separator"></div>
+  
+  <!-- Controles -->
+  <div class="panel-item">
+    <button class="button green" id="start-btn" title="Iniciar"></button>
+    <div class="label">INICIO</div>
+  </div>
+  <div class="panel-item">
+    <button class="button red" id="stop-btn" title="Paro"></button>
+    <div class="label">PARO</div>
+  </div>
+  <div class="panel-item">
+    <button class="button yellow" id="reset-btn" title="Reset"></button>
+    <div class="label">RESET</div>
+  </div>
+  <div class="panel-item">
+    <button class="button green" id="fan-btn" title="Ventilador ON/OFF"></button>
+    <div class="label">Vent. ON/OFF</div>
+  </div>
+  <div class="panel-item">
+    <button class="button green" id="pump-btn" title="Bomba ON/OFF"></button>
+    <div class="label">Bomba ON/OFF</div>
+  </div>
+  <div class="panel-item">
+    <button class="button green" id="light-btn" title="Luz ON/OFF"></button>
+    <div class="label">Luz ON/OFF</div>
+  </div>
+  
+  <div class="panel-item" style="grid-column: span 6;">
+    <button class="button emergency" id="emergency-btn">PARO<br>DE EMERGENCIA</button>
+  </div>
+</div>
+
+<script>
+/* ======= Estado y constantes ======= */
+let motorStatus = "stopped";
+let faultActive = false;
+let runTime = 0;
+let temperature = 25;
+let piecesOK = 0;
+let piecesBad = 0;
+let piecesSinceLastDefect = 0;
+let nextDefectEvery = Math.random() < 0.5 ? 5 : 6;
+
+let tempInterval, runtimeInterval, autoPumpTimer, autoFanTimer, productionInterval, randomFaultInterval;
+
+const NOMINAL_VOLTAGE = 460;
+const NOMINAL_FREQ = 60;
+const AMBIENT_TEMP = 25;
+
+const motorCurrent = 12.3; // A al estar en marcha
+const pumpCurrent = 5.0;
+const fanCurrent = 2.0;
+const lightCurrent = 1.0;
+
+/* ======= Elementos del DOM ======= */
+const startBtn = document.getElementById('start-btn');
+const stopBtn = document.getElementById('stop-btn');
+const resetBtn = document.getElementById('reset-btn');
+const emergencyBtn = document.getElementById('emergency-btn');
+const fanBtn = document.getElementById('fan-btn');
+const pumpBtn = document.getElementById('pump-btn');
+const lightBtn = document.getElementById('light-btn');
+
+const runLight = document.getElementById('run-light');
+const readyLight = document.getElementById('ready-light');
+const faultLight = document.getElementById('fault-light');
+const fanLight = document.getElementById('fan-light');
+const pumpLight = document.getElementById('pump-light');
+const warningLight = document.getElementById('warning-light');
+const lightIndicator = document.getElementById('light-indicator');
+const pieceOkLight = document.getElementById('piece-ok-light');
+const pieceBadLight = document.getElementById('piece-bad-light');
+
+const displayInfo = document.getElementById('display-info');
+const displayV = document.getElementById('display-v');
+const displayI = document.getElementById('display-i');
+const displayF = document.getElementById('display-f');
+const systemStatus = document.getElementById('system-status');
+const runTimeLabel = document.getElementById('run-time');
+const tempLabel = document.getElementById('temperature');
+const piecesLabel = document.getElementById('pieces');
+const lastPieceMsg = document.getElementById('last-piece-msg');
+
+/* ======= Utilidades ======= */
+function updateDisplays({ voltage=NOMINAL_VOLTAGE, current=0, frequency=NOMINAL_FREQ }={}) {
+  displayV.textContent = `${voltage.toFixed(1)} V`;
+  displayI.textContent = `${current.toFixed(1)} A`;
+  displayF.textContent = `${frequency.toFixed(1)} Hz`;
+  tempLabel.textContent = `Temp: ${Math.round(temperature)}°C`;
+  runTimeLabel.textContent = `Tiempo: ${runTime} s`;
+  piecesLabel.textContent = `Piezas: ${piecesOK}  |  Defectos: ${piecesBad}`;
+}
+
+function totalCurrentNow() {
+  let total = 0;
+  if (motorStatus === "running") total += motorCurrent;
+  if (pumpLight.classList.contains("on")) total += pumpCurrent;
+  if (fanLight.classList.contains("on")) total += fanCurrent;
+  if (lightIndicator.classList.contains("on")) total += lightCurrent;
+  return total;
+}
+
+function setStatus(text, color="#ff3333") {
+  systemStatus.textContent = text;
+  displayInfo.style.color = color;
+}
+
+function clearIntervals() {
+  [tempInterval, runtimeInterval, autoPumpTimer, autoFanTimer, productionInterval, randomFaultInterval]
+    .forEach(h => { if (h) clearInterval(h); if (h) clearTimeout(h); });
+  tempInterval = runtimeInterval = autoPumpTimer = autoFanTimer = productionInterval = randomFaultInterval = null;
+}
+
+function flashIndicator(el, ms=600) {
+  el.classList.add("on");
+  setTimeout(()=>el.classList.remove("on"), ms);
+}
+
+/* Sonidos simples con WebAudio (sin archivos externos) */
+let audioCtx;
+function playBeep(freq=880, duration=0.12, type="sine", volume=0.15) {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.value = volume;
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start();
+    setTimeout(()=>{osc.stop(); osc.disconnect();}, duration*1000);
+  } catch(e){ /* silencio si el navegador bloquea */ }
+}
+
+function playOKSound(){ playBeep(1000, 0.10, "square", 0.18); }
+function playBadSound(){ playBeep(240, 0.30, "sawtooth", 0.22); }
+
+/* ======= Lógica principal ======= */
+function startMotor() {
+  if (motorStatus === "running" || faultActive) return;
+  motorStatus = "starting";
+  setStatus("ARRANCANDO...");
+  readyLight.classList.remove("on");
+  runLight.classList.add("on");
+
+  // Pico de arranque en corriente
+  const spike = motorCurrent * 2.5;
+  updateDisplays({ current: spike });
+
+  setTimeout(() => {
+    motorStatus = "running";
+    setStatus("EN MARCHA");
+    // Iniciar bucles
+    startRuntime();
+    startTemperatureLoop();
+    startAutoPumpCycle();
+    startAutoFanCycle();
+    startProductionLoop();
+    startRandomFaults();
+    // Corriente estable inicial
+    updateDisplays({ current: totalCurrentNow() });
+  }, 1200);
+}
+
+function stopMotor() {
+  if (motorStatus === "stopped") return;
+  motorStatus = "stopped";
+  setStatus("DETENIDO");
+  runLight.classList.remove("on");
+  readyLight.classList.add("on");
+  clearIntervals();
+  updateDisplays({ current: totalCurrentNow() });
+}
+
+function triggerFault(type) {
+  stopMotor();
+  faultActive = true;
+  faultLight.classList.add("on");
+  warningLight.classList.remove("on");
+  setStatus(`!!! FALLA: ${type} !!!`, "#ff0000");
+}
+
+function resetFault() {
+  faultActive = false;
+  faultLight.classList.remove("on");
+  setStatus("Listo");
+  updateDisplays({ current: totalCurrentNow() });
+  readyLight.classList.add("on");
+}
+
+function emergencyStop() {
+  stopMotor();
+  faultActive = true;
+  faultLight.classList.add("on");
+  warningLight.classList.remove("on");
+  setStatus("EMERGENCIA ACTIVADA", "#ff0000");
+  temperature = 0;
+  runTime = 0;
+  piecesOK = 0;
+  piecesBad = 0;
+  piecesSinceLastDefect = 0;
+  nextDefectEvery = Math.random() < 0.5 ? 5 : 6;
+  updateDisplays({ voltage: 0, current: 0, frequency: 0 });
+  readyLight.classList.remove("on");
+}
+
+/* ======= Bucles / ciclos ======= */
+function startRuntime(){
+  if (runtimeInterval) clearInterval(runtimeInterval);
+  runtimeInterval = setInterval(()=>{
+    runTime += 1;
+    runTimeLabel.textContent = `Tiempo: ${runTime} s`;
+  }, 1000);
+}
+
+function startTemperatureLoop(){
+  if (tempInterval) clearInterval(tempInterval);
+  tempInterval = setInterval(()=>{
+    let delta = 0;
+    if (motorStatus === "running") {
+      delta += 0.25; // calor base del motor en marcha
+      if (pumpLight.classList.contains("on")) delta += 0.25;
+      if (lightIndicator.classList.contains("on")) delta += 0.08;
+      if (fanLight.classList.contains("on")) delta -= 0.20; // el ventilador ayuda a enfriar
+    } else {
+      // enfriamiento hacia ambiente
+      if (temperature > AMBIENT_TEMP) delta -= 0.35;
+      else if (temperature < AMBIENT_TEMP) delta += 0.15;
+    }
+    temperature = Math.min(80, Math.max(0, temperature + delta));
+    tempLabel.textContent = `Temp: ${Math.round(temperature)}°C`;
+
+    if (temperature >= 60) {
+      warningLight.classList.add('on');
+      setStatus("SOBRECALENTAMIENTO");
+    } else if (!faultActive && motorStatus === "running") {
+      // sólo si no estamos en falla, mantener EN MARCHA
+      setStatus("EN MARCHA");
+      warningLight.classList.remove('on');
+    }
+  }, 1000);
+}
+
+function scheduleToggle(fn, onMs, offMs){
+  fn(true);
+  auto = setTimeout(()=>{
+    fn(false);
+    auto = setTimeout(()=>scheduleToggle(fn, onMs, offMs), offMs);
+  }, onMs);
+  return auto;
+}
+
+function startAutoPumpCycle(){
+  if (autoPumpTimer) clearTimeout(autoPumpTimer);
+  const onMs = 8000;  // 8 s ON
+  const offMs = 7000; // 7 s OFF
+  function setPump(state){
+    pumpLight.classList.toggle("on", state);
+    updateDisplays({ current: totalCurrentNow() });
+  }
+  // iniciar ciclo solo si el motor corre
+  if (motorStatus === "running"){
+    setPump(true);
+    autoPumpTimer = setTimeout(function loopOff(){
+      setPump(false);
+      autoPumpTimer = setTimeout(function loopOn(){
+        if (motorStatus !== "running") return;
+        setPump(true);
+        autoPumpTimer = setTimeout(loopOff, onMs);
+      }, offMs);
+    }, onMs);
+  }
+}
+
+function startAutoFanCycle(){
+  if (autoFanTimer) clearTimeout(autoFanTimer);
+  const onMs = 10000; // 10 s ON
+  const offMs = 10000; // 10 s OFF
+  function setFan(state){
+    fanLight.classList.toggle("on", state);
+    updateDisplays({ current: totalCurrentNow() });
+  }
+  if (motorStatus === "running"){
+    setFan(true);
+    autoFanTimer = setTimeout(function loopOff(){
+      setFan(false);
+      autoFanTimer = setTimeout(function loopOn(){
+        if (motorStatus !== "running") return;
+        setFan(true);
+        autoFanTimer = setTimeout(loopOff, onMs);
+      }, offMs);
+    }, onMs);
+  }
+}
+
+function startProductionLoop(){
+  if (productionInterval) clearInterval(productionInterval);
+  productionInterval = setInterval(()=>{
+    if (motorStatus !== "running") return;
+    producePiece();
+  }, 10000); // cada 10 s
+}
+
+function startRandomFaults(){
+  if (randomFaultInterval) clearInterval(randomFaultInterval);
+  randomFaultInterval = setInterval(()=>{
+    if (motorStatus === "running" && Math.random() < 0.08) {
+      triggerFault("SOBRECARGA DEL MOTOR");
+    }
+  }, 20000);
+}
+
+/* ======= Producción de piezas ======= */
+function producePiece(){
+  piecesSinceLastDefect++;
+  const isDefect = (piecesSinceLastDefect >= nextDefectEvery);
+  if (isDefect){
+    piecesBad++;
+    piecesSinceLastDefect = 0;
+    nextDefectEvery = Math.random() < 0.5 ? 5 : 6;
+    flashIndicator(pieceBadLight, 1200);
+    playBadSound();
+    lastPieceMsg.textContent = "Pieza defectuosa detectada";
+    lastPieceMsg.style.color = "#ff0000";
+  } else {
+    piecesOK++;
+    flashIndicator(pieceOkLight, 600);
+    playOKSound();
+    lastPieceMsg.textContent = "Pieza OK";
+    lastPieceMsg.style.color = "#00ff88";
+  }
+  piecesLabel.textContent = `Piezas: ${piecesOK}  |  Defectos: ${piecesBad}`;
+}
+
+/* ======= Botones ======= */
+startBtn.addEventListener('click', () => { if(!faultActive) startMotor(); });
+stopBtn.addEventListener('click', stopMotor);
+resetBtn.addEventListener('click', resetFault);
+emergencyBtn.addEventListener('click', emergencyStop);
+
+fanBtn.addEventListener('click', () => {
+  const newState = !fanLight.classList.contains('on');
+  fanLight.classList.toggle('on', newState);
+  updateDisplays({ current: totalCurrentNow() });
+});
+pumpBtn.addEventListener('click', () => {
+  const newState = !pumpLight.classList.contains('on');
+  pumpLight.classList.toggle('on', newState);
+  updateDisplays({ current: totalCurrentNow() });
+});
+lightBtn.addEventListener('click', () => {
+  lightBtn.classList.toggle('on');
+  const isOn = lightBtn.classList.contains('on');
+  lightIndicator.classList.toggle('on', isOn);
+  updateDisplays({ current: totalCurrentNow() });
+});
+
+/* ======= Estado inicial ======= */
+readyLight.classList.add("on");
+updateDisplays({ voltage: NOMINAL_VOLTAGE, current: 0, frequency: NOMINAL_FREQ });
+setStatus("Listo");
+</script>
+</body>
+</html>
